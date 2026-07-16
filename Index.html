@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spin Wheel</title>
+<style>
+  :root{
+    --ink:#f3f1fa;
+    --ink-soft:#a9a3c2;
+    --line:rgba(255,255,255,0.12);
+    --surface:rgba(255,255,255,0.06);
+    --surface-solid:#1c1830;
+    --accent-1:#ff4fa3;
+    --accent-2:#ff8c42;
+    --accent-3:#a45ce5;
+    --accent-4:#3fa9f5;
+    --focus:#ff8fd6;
+    --radius:20px;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;
+    min-height:100%;
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Tahoma, sans-serif;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(164,92,229,0.35), transparent 45%),
+      radial-gradient(circle at 85% 15%, rgba(63,169,245,0.28), transparent 45%),
+      radial-gradient(circle at 50% 100%, rgba(255,79,163,0.22), transparent 55%),
+      #0f0c1c;
+    color:var(--ink);
+  }
+  .app{
+    display:flex;
+    flex-wrap:wrap;
+    gap:28px;
+    align-items:flex-start;
+    justify-content:center;
+    padding:32px;
+    max-width:1000px;
+    margin:0 auto;
+  }
+  .wheel-col{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:22px;
+    flex:1 1 380px;
+    min-width:300px;
+  }
+  .wheel-wrap{
+    position:relative;
+    width:100%;
+    max-width:420px;
+    aspect-ratio:1/1;
+  }
+  .wheel-wrap::before{
+    content:'';
+    position:absolute;
+    inset:-18px;
+    border-radius:50%;
+    background:conic-gradient(from 0deg, #ff4fa3, #ff8c42, #ffd23f, #5cd85a, #3fa9f5, #a45ce5, #ff4fa3);
+    filter:blur(28px);
+    opacity:0.45;
+    z-index:0;
+    animation:spinGlow 8s linear infinite;
+  }
+  @keyframes spinGlow{
+    from{ transform:rotate(0deg); }
+    to{ transform:rotate(360deg); }
+  }
+  canvas{
+    position:relative;
+    z-index:1;
+    width:100%;
+    height:100%;
+    display:block;
+    border-radius:50%;
+    filter:drop-shadow(0 10px 34px rgba(0,0,0,0.55));
+  }
+  .pointer{
+    position:absolute;
+    top:50%;
+    right:-8px;
+    transform:translateY(-50%);
+    width:0;
+    height:0;
+    border-top:14px solid transparent;
+    border-bottom:14px solid transparent;
+    border-right:28px solid #ffffff;
+    filter:drop-shadow(0 2px 6px rgba(0,0,0,0.5)) drop-shadow(0 0 8px rgba(255,79,163,0.7));
+    z-index:5;
+  }
+  .hub-label{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    text-align:center;
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:.3px;
+    color:#1b1430;
+    pointer-events:none;
+    width:34%;
+    line-height:1.25;
+    z-index:2;
+  }
+  .spin-btn{
+    appearance:none;
+    border:none;
+    background:linear-gradient(90deg,var(--accent-1),var(--accent-2));
+    color:#fff;
+    font-size:16px;
+    font-weight:700;
+    padding:14px 40px;
+    border-radius:999px;
+    cursor:pointer;
+    letter-spacing:.3px;
+    box-shadow:0 8px 24px rgba(255,79,163,0.35), 0 0 0 1px rgba(255,255,255,0.08) inset;
+    transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
+  }
+  .spin-btn:hover{ transform:translateY(-2px); box-shadow:0 12px 32px rgba(255,79,163,0.5), 0 0 0 1px rgba(255,255,255,0.12) inset; filter:brightness(1.05); }
+  .spin-btn:active{transform:translateY(0) scale(0.97);}
+  .spin-btn:disabled{background:linear-gradient(90deg,#5b5570,#454057);cursor:not-allowed;box-shadow:none;}
+  .spin-btn:focus-visible{outline:3px solid var(--focus);outline-offset:3px;}
+
+  .panel{
+    flex:1 1 300px;
+    min-width:280px;
+    background:var(--surface);
+    backdrop-filter:blur(18px);
+    -webkit-backdrop-filter:blur(18px);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:24px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.03) inset;
+  }
+  .panel h2{
+    margin:0 0 6px 0;
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:1.6px;
+    text-transform:uppercase;
+    background:linear-gradient(90deg,var(--accent-1),var(--accent-3),var(--accent-4));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    display:inline-block;
+  }
+  .panel p.hint{
+    margin:0 0 16px 0;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    line-height:1.5;
+  }
+  textarea{
+    width:100%;
+    min-height:180px;
+    resize:vertical;
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Tahoma, sans-serif;
+    font-size:14px;
+    padding:14px 16px;
+    background:rgba(0,0,0,0.28);
+    border:1px solid var(--line);
+    border-radius:14px;
+    color:var(--ink);
+    line-height:1.7;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  textarea::placeholder{ color:#6f6a8c; }
+  textarea:focus-visible{
+    outline:none;
+    border-color:rgba(255,143,214,0.6);
+    box-shadow:0 0 0 3px rgba(255,79,163,0.18), 0 0 24px rgba(164,92,229,0.25);
+  }
+  textarea::-webkit-scrollbar{ width:8px; }
+  textarea::-webkit-scrollbar-track{ background:transparent; }
+  textarea::-webkit-scrollbar-thumb{ background:rgba(255,143,214,0.4); border-radius:8px; }
+
+  .row{
+    display:flex;
+    gap:10px;
+    margin-top:14px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  .btn-secondary{
+    appearance:none;
+    background:rgba(255,255,255,0.08);
+    color:var(--ink);
+    border:1px solid var(--line);
+    font-size:13px;
+    font-weight:600;
+    padding:9px 16px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:background .15s ease, border-color .15s ease, transform .1s ease;
+  }
+  .btn-secondary:hover{ background:rgba(255,255,255,0.15); border-color:rgba(255,143,214,0.4); transform:translateY(-1px); }
+  .btn-secondary:active{ transform:translateY(0); }
+  .btn-secondary:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+  .count{
+    font-size:11.5px;
+    font-weight:600;
+    letter-spacing:.3px;
+    color:var(--ink-soft);
+    background:rgba(255,255,255,0.06);
+    border:1px solid var(--line);
+    padding:6px 12px;
+    border-radius:999px;
+    margin-left:auto;
+  }
+  .toggle-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-top:20px;
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  .toggle-row input[type="checkbox"]{
+    appearance:none;
+    -webkit-appearance:none;
+    width:42px;
+    height:24px;
+    min-width:42px;
+    background:rgba(255,255,255,0.12);
+    border:1px solid var(--line);
+    border-radius:999px;
+    position:relative;
+    cursor:pointer;
+    outline:none;
+    transition:background .2s ease;
+  }
+  .toggle-row input[type="checkbox"]::before{
+    content:'';
+    position:absolute;
+    top:2px;
+    left:2px;
+    width:18px;
+    height:18px;
+    border-radius:50%;
+    background:#fff;
+    box-shadow:0 1px 4px rgba(0,0,0,0.4);
+    transition:transform .2s cubic-bezier(.34,1.56,.64,1);
+  }
+  .toggle-row input[type="checkbox"]:checked{
+    background:linear-gradient(90deg,var(--accent-1),var(--accent-2));
+    border-color:transparent;
+  }
+  .toggle-row input[type="checkbox"]:checked::before{
+    transform:translateX(18px);
+  }
+  .toggle-row input[type="checkbox"]:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+
+  .result-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(10,7,18,0.65);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .2s ease;
+    z-index:50;
+    overflow:hidden;
+  }
+  .result-overlay.show{
+    opacity:1;
+    pointer-events:auto;
+  }
+  #fxCanvas{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    z-index:1;
+  }
+  .result-card{
+    position:relative;
+    z-index:2;
+    background:#fff;
+    border-radius:20px;
+    padding:36px 44px;
+    text-align:center;
+    min-width:260px;
+    max-width:90vw;
+    transform:translateY(10px) scale(.9);
+    transition:transform .25s cubic-bezier(.34,1.56,.64,1);
+    box-shadow:0 20px 60px rgba(15,25,35,0.35), 0 0 0 4px #ff4fa3, 0 0 40px rgba(255,79,163,0.5);
+  }
+  .result-overlay.show .result-card{
+    transform:translateY(0) scale(1);
+  }
+  .result-eyebrow{
+    font-size:12px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:#e0389c;
+    font-weight:700;
+    margin-bottom:8px;
+  }
+  .result-value{
+    font-size:34px;
+    font-weight:800;
+    background:linear-gradient(90deg,#ff4fa3,#ff8c42,#ffd23f,#5cd85a,#3fa9f5,#a45ce5,#ff4fa3);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    word-break:break-word;
+  }
+  .result-close{
+    margin-top:22px;
+    appearance:none;
+    border:1px solid #e4e4e8;
+    background:#fff;
+    color:#1b2430;
+    padding:9px 22px;
+    border-radius:999px;
+    font-size:13.5px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .result-close:hover{background:#f2f3f5;}
+
+  @media (prefers-reduced-motion: reduce){
+    canvas{transition:none !important;}
+    .wheel-wrap::before{animation:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="wheel-col">
+    <div class="wheel-wrap">
+      <canvas id="wheel" width="600" height="600" role="img" aria-label="Spin wheel"></canvas>
+      <div class="hub-label" id="hubLabel">Tap<br>Spin</div>
+      <div class="pointer" aria-hidden="true"></div>
+    </div>
+    <button class="spin-btn" id="spinBtn">Spin the wheel</button>
+  </div>
+
+  <div class="panel">
+    <h2>Entries</h2>
+    <p class="hint">One entry per line. Changes update the wheel automatically.</p>
+    <textarea id="entriesBox" spellcheck="false"></textarea>
+    <div class="row">
+      <button class="btn-secondary" id="shuffleBtn" type="button">Shuffle order</button>
+      <button class="btn-secondary" id="removeWinnerBtn" type="button">Remove last winner</button>
+      <button class="btn-secondary" id="resetWheelBtn" type="button">Reset wheel</button>
+      <span class="count" id="entryCount">3 entries</span>
+    </div>
+    <label class="toggle-row">
+      <input type="checkbox" id="noRepeatToggle" checked>
+      Remove winning entry (all 5 slices) after it's picked
+    </label>
+  </div>
+</div>
+
+<div class="result-overlay" id="resultOverlay">
+  <canvas id="fxCanvas"></canvas>
+  <div class="result-card">
+    <div class="result-eyebrow">Winner</div>
+    <div class="result-value" id="resultValue">—</div>
+    <button class="result-close" id="resultClose">Close</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('wheel');
+  const ctx = canvas.getContext('2d');
+  const entriesBox = document.getElementById('entriesBox');
+  const spinBtn = document.getElementById('spinBtn');
+  const entryCount = document.getElementById('entryCount');
+  const shuffleBtn = document.getElementById('shuffleBtn');
+  const removeWinnerBtn = document.getElementById('removeWinnerBtn');
+  const resetWheelBtn = document.getElementById('resetWheelBtn');
+  const noRepeatToggle = document.getElementById('noRepeatToggle');
+  const resultOverlay = document.getElementById('resultOverlay');
+  const resultValue = document.getElementById('resultValue');
+  const resultClose = document.getElementById('resultClose');
+  const hubLabel = document.getElementById('hubLabel');
+
+  function rainbowColor(i, total){
+    const hue = (360 * i / Math.max(total,1)) % 360;
+    return 'hsl(' + hue + ', 92%, 56%)';
+  }
+
+  const COPIES = 5;
+  let rawEntries = ['Entergy','CenterPoint','QC']; // master list, exactly as typed in the box
+  let activeEntries = [];  // subset currently in play on the wheel
+  let entries = [];         // expanded wheel slices (each activeEntry repeated COPIES times, interleaved)
+  let rotation = 0;         // current rotation in radians
+  let spinning = false;
+  let lastWinnerLabel = null;
+
+  function getRawEntries(){
+    return entriesBox.value
+      .split('\n')
+      .map(s=>s.trim())
+      .filter(s=>s.length>0);
+  }
+
+  function buildSlices(list){
+    // Interleave copies so identical labels are spread around the wheel
+    // rather than clumped together in one wedge of color.
+    const slices = [];
+    for(let round=0; round<COPIES; round++){
+      for(let i=0;i<list.length;i++){
+        slices.push(list[i]);
+      }
+    }
+    return slices;
+  }
+
+  function rebuildWheelFromActive(){
+    entries = activeEntries.length ? buildSlices(activeEntries) : [];
+    updateCount();
+  }
+
+  // Called when the typed list itself changes. Redefines the master list
+  // and puts everyone back on the wheel (fresh pool to play with).
+  function syncFromTextarea(){
+    rawEntries = getRawEntries();
+    activeEntries = rawEntries.slice();
+    lastWinnerLabel = null;
+    rebuildWheelFromActive();
+    draw();
+  }
+
+  function updateCount(){
+    const total = rawEntries.length;
+    const onWheel = activeEntries.length;
+    entryCount.textContent = onWheel + '/' + total + ' on wheel · ' + entries.length + ' slices';
+  }
+
+  entriesBox.value = rawEntries.join('\n');
+  syncFromTextarea();
+
+  entriesBox.addEventListener('input', syncFromTextarea);
+
+  shuffleBtn.addEventListener('click', ()=>{
+    for(let i=rawEntries.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [rawEntries[i],rawEntries[j]] = [rawEntries[j],rawEntries[i]];
+    }
+    entriesBox.value = rawEntries.join('\n');
+    activeEntries = rawEntries.slice();
+    lastWinnerLabel = null;
+    rebuildWheelFromActive();
+    draw();
+  });
+
+  // Removes a winner from the wheel only — the typed textarea list is untouched.
+  function removeEntryEverywhere(label){
+    activeEntries = activeEntries.filter(e => e !== label);
+    rebuildWheelFromActive();
+  }
+
+  removeWinnerBtn.addEventListener('click', ()=>{
+    if(lastWinnerLabel===null) return;
+    removeEntryEverywhere(lastWinnerLabel);
+    lastWinnerLabel = null;
+    draw();
+  });
+
+  resetWheelBtn.addEventListener('click', ()=>{
+    activeEntries = rawEntries.slice();
+    lastWinnerLabel = null;
+    rebuildWheelFromActive();
+    draw();
+  });
+
+  function draw(){
+    const w = canvas.width, h = canvas.height;
+    const cx = w/2, cy = h/2;
+    const r = w/2 - 6;
+    ctx.clearRect(0,0,w,h);
+
+    if(entries.length===0){
+      ctx.beginPath();
+      ctx.arc(cx,cy,r,0,Math.PI*2);
+      ctx.fillStyle = '#eef1f3';
+      ctx.fill();
+      ctx.fillStyle = '#8a95a0';
+      ctx.font = '600 20px "Segoe UI"';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Add entries to build the wheel', cx, cy);
+      return;
+    }
+
+    const n = entries.length;
+    const slice = (Math.PI*2)/n;
+
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(rotation);
+
+    for(let i=0;i<n;i++){
+      const start = i*slice;
+      const end = start+slice;
+      ctx.beginPath();
+      ctx.moveTo(0,0);
+      ctx.arc(0,0,r,start,end);
+      ctx.closePath();
+      ctx.fillStyle = rainbowColor(i, n);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    ctx.restore();
+
+    // hub circle
+    ctx.beginPath();
+    ctx.arc(cx,cy, r*0.22, 0, Math.PI*2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.strokeStyle = '#d9dee3';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  function easeOutCubic(t){ return 1 - Math.pow(1-t,3); }
+
+  function spin(){
+    if(spinning) return;
+    if(entries.length===0) return;
+    if(entries.length===1){
+      const onlyLabel = entries[0];
+      showResult(onlyLabel);
+      lastWinnerLabel = onlyLabel;
+      if(noRepeatToggle.checked){
+        removeEntryEverywhere(onlyLabel);
+        lastWinnerLabel = null;
+        draw();
+      }
+      return;
+    }
+    spinning = true;
+    spinBtn.disabled = true;
+    hubLabel.style.opacity = '0';
+
+    const n = entries.length;
+    const slice = (Math.PI*2)/n;
+    const winnerIndex = Math.floor(Math.random()*n);
+
+    // Pointer is fixed at angle 0 (3 o'clock, pointing left into the wheel).
+    // We want the winning slice's center to land at angle 0 after rotation.
+    const winnerCenterAngle = winnerIndex*slice + slice/2;
+    const targetWithinCircle = ( -winnerCenterAngle ) % (Math.PI*2);
+    const extraSpins = 6 + Math.floor(Math.random()*3); // 6-8 full turns
+    const startRotation = rotation;
+    const currentMod = ((rotation % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+    let delta = (targetWithinCircle - currentMod + Math.PI*2) % (Math.PI*2);
+    const totalDelta = delta + extraSpins*Math.PI*2;
+
+    const duration = 4200;
+    const startTime = performance.now();
+
+    function frame(now){
+      const elapsed = now - startTime;
+      const t = Math.min(elapsed/duration, 1);
+      const eased = easeOutCubic(t);
+      rotation = startRotation + totalDelta*eased;
+      draw();
+      if(t<1){
+        requestAnimationFrame(frame);
+      }else{
+        spinning = false;
+        spinBtn.disabled = false;
+        hubLabel.style.opacity = '1';
+        const winnerLabel = entries[winnerIndex];
+        lastWinnerLabel = winnerLabel;
+        showResult(winnerLabel);
+        if(noRepeatToggle.checked){
+          removeEntryEverywhere(winnerLabel);
+          lastWinnerLabel = null;
+          draw();
+        }
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function showResult(value){
+    resultValue.textContent = value;
+    resultOverlay.classList.add('show');
+    startCelebration();
+  }
+  function hideResult(){
+    resultOverlay.classList.remove('show');
+    stopCelebration();
+  }
+
+  resultClose.addEventListener('click', hideResult);
+  resultOverlay.addEventListener('click', (e)=>{
+    if(e.target===resultOverlay) hideResult();
+  });
+  document.addEventListener('keydown', (e)=>{
+    if(e.key==='Escape') hideResult();
+  });
+
+  spinBtn.addEventListener('click', spin);
+  canvas.addEventListener('click', spin);
+
+  // ---- Celebration: pink fireworks + glitter ----
+  const fxCanvas = document.getElementById('fxCanvas');
+  const fxCtx = fxCanvas.getContext('2d');
+  let fxParticles = [];
+  let fxRunning = false;
+  let fxRafId = null;
+  let fxLastLaunch = 0;
+  let fxElapsed = 0;
+
+  const CELEBRATION_COLORS = ['#ff2fa0','#ff6fc9','#ffd23f','#ffffff','#ff8fd6','#ffe36b','#ff4fa3'];
+
+  function resizeFxCanvas(){
+    fxCanvas.width = resultOverlay.clientWidth;
+    fxCanvas.height = resultOverlay.clientHeight;
+  }
+
+  function spawnFirework(x,y){
+    const count = 40 + Math.floor(Math.random()*20);
+    for(let i=0;i<count;i++){
+      const angle = Math.random()*Math.PI*2;
+      const speed = 2 + Math.random()*5;
+      fxParticles.push({
+        x, y,
+        vx: Math.cos(angle)*speed,
+        vy: Math.sin(angle)*speed,
+        life: 0,
+        maxLife: 50 + Math.random()*30,
+        size: 2 + Math.random()*3,
+        color: CELEBRATION_COLORS[Math.floor(Math.random()*CELEBRATION_COLORS.length)],
+        type: 'spark',
+        gravity: 0.06
+      });
+    }
+  }
+
+  function spawnGlitterBatch(n){
+    const w = fxCanvas.width;
+    for(let i=0;i<n;i++){
+      fxParticles.push({
+        x: Math.random()*w,
+        y: -10 - Math.random()*40,
+        vx: (Math.random()-0.5)*1.2,
+        vy: 1.5 + Math.random()*2.5,
+        life: 0,
+        maxLife: 200 + Math.random()*120,
+        size: 2 + Math.random()*3,
+        color: CELEBRATION_COLORS[Math.floor(Math.random()*CELEBRATION_COLORS.length)],
+        type: 'glitter',
+        spin: Math.random()*Math.PI*2,
+        spinSpeed: (Math.random()-0.5)*0.3,
+        gravity: 0.015
+      });
+    }
+  }
+
+  function fxFrame(ts){
+    if(!fxRunning) return;
+    const w = fxCanvas.width, h = fxCanvas.height;
+    fxCtx.clearRect(0,0,w,h);
+
+    if(!fxLastLaunch) fxLastLaunch = ts;
+    fxElapsed += 16;
+
+    // Launch a firework burst every ~450ms for the first 2.5 seconds
+    if(ts - fxLastLaunch > 450 && fxElapsed < 2600){
+      fxLastLaunch = ts;
+      const x = w*0.2 + Math.random()*w*0.6;
+      const y = h*0.25 + Math.random()*h*0.35;
+      spawnFirework(x,y);
+    }
+    // Continuous falling glitter for the whole celebration
+    if(Math.random() < 0.7){
+      spawnGlitterBatch(3);
+    }
+
+    fxParticles.forEach(p=>{
+      p.life++;
+      p.vy += p.gravity;
+      p.x += p.vx;
+      p.y += p.vy;
+      if(p.type==='glitter'){
+        p.spin += p.spinSpeed;
+      }
+      const t = p.life / p.maxLife;
+      const alpha = Math.max(0, 1 - t);
+
+      fxCtx.save();
+      fxCtx.globalAlpha = alpha;
+      fxCtx.translate(p.x, p.y);
+      if(p.type==='glitter'){
+        fxCtx.rotate(p.spin);
+        fxCtx.fillStyle = p.color;
+        fxCtx.fillRect(-p.size/2, -p.size/2, p.size, p.size*0.6);
+      }else{
+        fxCtx.beginPath();
+        fxCtx.arc(0,0,p.size,0,Math.PI*2);
+        fxCtx.fillStyle = p.color;
+        fxCtx.shadowColor = p.color;
+        fxCtx.shadowBlur = 8;
+        fxCtx.fill();
+      }
+      fxCtx.restore();
+    });
+
+    fxParticles = fxParticles.filter(p => p.life < p.maxLife && p.y < h + 30);
+
+    fxRafId = requestAnimationFrame(fxFrame);
+  }
+
+  function startCelebration(){
+    resizeFxCanvas();
+    fxParticles = [];
+    fxLastLaunch = 0;
+    fxElapsed = 0;
+    fxRunning = true;
+    // Kick off with two immediate bursts near the card
+    const w = fxCanvas.width, h = fxCanvas.height;
+    spawnFirework(w*0.3, h*0.35);
+    spawnFirework(w*0.7, h*0.4);
+    spawnGlitterBatch(30);
+    fxRafId = requestAnimationFrame(fxFrame);
+  }
+
+  function stopCelebration(){
+    fxRunning = false;
+    if(fxRafId) cancelAnimationFrame(fxRafId);
+    fxParticles = [];
+    fxCtx.clearRect(0,0,fxCanvas.width,fxCanvas.height);
+  }
+
+  window.addEventListener('resize', ()=>{
+    if(fxRunning) resizeFxCanvas();
+  });
+
+  draw();
+})();
+</script>
+</body>
+</html>
